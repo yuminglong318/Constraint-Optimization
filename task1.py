@@ -53,7 +53,7 @@ for p in people:
     model.AddImplication(
         main_courses_vars[p]['Filet Steak'], starter_vars[p]['Onion Soup'])
 
-# Emily orders beer as drink or has fried chicken as main and ice cream as desert,; James orders cocke as drink or has onion soup as stater and filet steak as main.
+# Emily orders beer as drink or has fried chicken as main and ice cream as desert,; James orders coke as drink or has onion soup as stater and filet steak as main.
 
 emily_helper_var = model.NewBoolVar('Emily helper')
 james_helper_var = model.NewBoolVar('James helper')
@@ -82,8 +82,32 @@ for p in people:
     model.Add(sum(drinks_vars[p].values()) == 1)
 
 # As many different things
-total_variety = sum(sum(choice[list(choice.keys())[0]].values()) for choice in [starter_vars, main_courses_vars, deserts_vars, drinks_vars])
-model.Maximize(total_variety)
+all_dishes = starters + main_courses + deserts + drinks
+dish_vars = {dish: model.NewBoolVar('') for dish in all_dishes}
+
+# for each person, if they have a dish, then the corresponding dish variable should be true
+for p in starter_vars:
+    for dish in starter_vars[p]:
+        model.Add(dish_vars[dish] >= starter_vars[p][dish])
+    for dish in main_courses_vars[p]:
+        model.Add(dish_vars[dish] >= main_courses_vars[p][dish])
+    for dish in deserts_vars[p]:
+        model.Add(dish_vars[dish] >= deserts_vars[p][dish])
+    for dish in drinks_vars[p]:
+        model.Add(dish_vars[dish] >= drinks_vars[p][dish])
+
+# for all person, if they do not have a dish, then the corresonding dish var should be false
+for dish in starters:
+    model.Add(dish_vars[dish] <= sum(starter_vars[p][dish] for p in people))
+for dish in main_courses:
+    model.Add(dish_vars[dish] <= sum(main_courses_vars[p][dish] for p in people))
+for dish in deserts:
+    model.Add(dish_vars[dish] <= sum(deserts_vars[p][dish] for p in people))
+for dish in drinks:
+    model.Add(dish_vars[dish] <= sum(drinks_vars[p][dish] for p in people))
+
+# maximize the sum of distinct dishes
+model.Maximize(sum(dish_vars.values()))
 
 solver = cp_model.CpSolver()
 status = solver.Solve(model)
